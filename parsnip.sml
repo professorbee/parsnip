@@ -1,4 +1,7 @@
-datatype ('a, 'b) result = Ok of 'a | Error of 'b
+open Result
+
+fun |> (x : 'a, f : ('a -> 'b)) : 'b = f x
+infix 3 |>
 
 type input = 
   { text : string, pos : int }
@@ -20,20 +23,19 @@ type 'a parser =
 
 fun map (f : 'a -> 'b, p: 'a parser) : 'b parser =
   {
-    run = (fn input =>
-      (case (#run p) input of
-        Ok (input', x) => Ok (input', f x)
-      | Error error => Error error))
+    run = fn input =>
+          case (#run p) input of
+            Ok (input', x) => Ok (input', f x)
+          | Error error => Error error
   }
 
 fun bind (f : 'a -> 'b parser, p : 'a parser) : 'b parser =
   {
-    run = (fn input =>
-      (case (#run p) input of 
-        Ok (input', x) => (#run (f x)) input'
-      | Error error => Error error ))
+    run = fn input =>
+          case (#run p) input of 
+            Ok (input', x) => (#run (f x)) input'
+          | Error error => Error error 
   }
-
 
 fun prefix (str : string) : string parser =
   {
@@ -53,14 +55,52 @@ fun prefix (str : string) : string parser =
       end)
   }
 
+fun *> (p1 : 'a parser, p2: 'b parser) : 'b parser =
+  {
+    run = fn input =>
+          case ((#run p1) input) of
+            Ok (input', _) => ((#run p2) input')
+          | Error e => Error e
+  }
+fun <* (p1 : 'a parser, p2: 'b parser) : 'a parser =
+  {
+    run = fn input => 
+          case (#run p1) input of 
+            Ok (input' , x) => 
+              Result.map (fn (input, _) => (input, x) ,(#run p2) input')
+          | Error error => Error error
+  }
+
+fun <*> (p1 : 'a parser, p2: 'b parser) : ('a * 'b) parser =
+  { run = fn input =>
+          case (#run p1) input of
+            Ok (input', x) =>
+              (case (#run p2) input' of 
+                Ok (inp, y) => Ok (inp, (x, y))
+              | Error e => Error e)
+            | Error e => Error e
+  }
+
+fun <|> (p1 : 'a parser, p2 : 'a parser) : 'a parser =
+  { run = fn input =>
+          case (#run p1) input of
+            Ok (input', x) => Ok (input', x)
+          | Error _ => (#run p2) input 
+  }
+
+infix 3 <*
+infix 3 *>
+infix 3 <*>
+infix 3 <|>
+
 fun main () = 
   let 
-    val inp = make_input "hello world"
-    val res = (#run (prefix "hello")) inp
+    val inp = make_input "world"
+    val res = (#run (prefix "world" <|> prefix "hello")) (inp)
   in
-    (case res of 
-      Ok ({pos, text}, _) => print text
-    | Error { pos, desc } => print desc)
+    case res of 
+      Ok (_, x) => print x
+    | Error {desc, pos} => print ("Error: " ^ desc)
   end
 
 val () = main ()
