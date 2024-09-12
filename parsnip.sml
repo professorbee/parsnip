@@ -1,5 +1,6 @@
 open Result
 
+(* Just in case *)
 fun |> (x : 'a, f : ('a -> 'b)) : 'b = f x
 infix 3 |>
 
@@ -39,30 +40,57 @@ fun bind (f : 'a -> 'b parser, p : 'a parser) : 'b parser =
 
 fun prefix (str : string) : string parser =
   {
-    run = (fn input => 
-      let 
-        val n = String.size str
-        val m = String.size (#text input)
-        val pfix = input_sub (0, n, input)      
-      in 
-        if #text pfix = str then
-          let val rest = input_sub (n, m - n, input) in
-            Ok (rest, str)
+    run = fn input => 
+          let 
+            val n = String.size str
+            val m = String.size (#text input)
+            val pfix = input_sub (0, n, input)
+            val rest = input_sub (n, m - n, input)
+          in 
+            if #text pfix = str then
+              Ok (rest, str)
+            else
+              Error { 
+                pos = (#pos input),
+                desc = "Expected " ^ str
+              }
           end
-        else
-          Error { pos = (#pos input),
-            desc = "Expected " ^ str}
-      end)
   }
 
-fun *> (p1 : 'a parser, p2: 'b parser) : 'b parser =
+fun take (n : int) : string parser =
+  {
+    run = fn input =>
+          if n < (String.size (#text input)) then
+            let 
+              val str = input_sub (0, n, input)
+              val m = String.size (#text input)
+              val rest = input_sub (n, m - n, input)
+            in
+              Ok (rest, (#text str))
+            end
+          else
+            Error {
+              pos = (#pos input),
+              desc = "Input not long enough!"
+            }
+  } 
+
+fun takeWhile (f : (char -> bool)) : string parser =
+  raise Fail "Not implemented yet!"
+
+infix <*
+infix *>
+infix <*>
+infix <|>
+
+fun op*> (p1 : 'a parser, p2: 'b parser) : 'b parser =
   {
     run = fn input =>
           case ((#run p1) input) of
             Ok (input', _) => ((#run p2) input')
           | Error e => Error e
   }
-fun <* (p1 : 'a parser, p2: 'b parser) : 'a parser =
+fun op<* (p1 : 'a parser, p2: 'b parser) : 'a parser =
   {
     run = fn input => 
           case (#run p1) input of 
@@ -71,7 +99,7 @@ fun <* (p1 : 'a parser, p2: 'b parser) : 'a parser =
           | Error error => Error error
   }
 
-fun <*> (p1 : 'a parser, p2: 'b parser) : ('a * 'b) parser =
+fun op<*> (p1 : 'a parser, p2: 'b parser) : ('a * 'b) parser =
   { run = fn input =>
           case (#run p1) input of
             Ok (input', x) =>
@@ -81,17 +109,13 @@ fun <*> (p1 : 'a parser, p2: 'b parser) : ('a * 'b) parser =
             | Error e => Error e
   }
 
-fun <|> (p1 : 'a parser, p2 : 'a parser) : 'a parser =
+fun op<|> (p1 : 'a parser, p2 : 'a parser) : 'a parser =
   { run = fn input =>
           case (#run p1) input of
             Ok (input', x) => Ok (input', x)
           | Error _ => (#run p2) input 
   }
 
-infix 3 <*
-infix 3 *>
-infix 3 <*>
-infix 3 <|>
 
 fun main () = 
   let 
