@@ -2,7 +2,7 @@ open Result
 
 (* Just in case *)
 fun |> (x : 'a, f : ('a -> 'b)) : 'b = f x
-infix 3 |>
+infix |>
 
 type input = 
   { text : string, pos : int }
@@ -76,7 +76,33 @@ fun take (n : int) : string parser =
   } 
 
 fun takeWhile (f : (char -> bool)) : string parser =
-  raise Fail "Not implemented yet!"
+  {
+    run = fn input =>
+          let 
+            fun loop (idx : int) : (input * string) =
+              let 
+                val m = String.size (#text input)
+                val substr = String.sub (#text input, idx)
+                val applied = f substr
+              in
+                if applied then
+                  loop (idx + 1)
+                else
+                  let 
+                    val str = input_sub (0, idx, input)
+                    val rest = input_sub (idx, m - idx, input) 
+                  in
+                    (rest, (#text str))
+                  end
+              end
+          in
+            Ok (loop 0) handle Subscript =>
+              Error {
+                pos = (#pos input),
+                desc = "Reached end of input at " ^ (Int.toString (#pos input))
+              }
+          end
+  }
 
 infix <*
 infix *>
@@ -116,11 +142,10 @@ fun op<|> (p1 : 'a parser, p2 : 'a parser) : 'a parser =
           | Error _ => (#run p2) input 
   }
 
-
 fun main () = 
   let 
     val inp = make_input "world"
-    val res = (#run (prefix "world" <|> prefix "hello")) (inp)
+    val res = (#run (prefix "world" <|> prefix "hello")) inp
   in
     case res of 
       Ok (_, x) => print x
@@ -128,3 +153,4 @@ fun main () =
   end
 
 val () = main ()
+
