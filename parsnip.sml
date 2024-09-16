@@ -7,10 +7,10 @@ infix |>
 type input = 
   { text : string, pos : int }
 
-fun make_input (s : string): input =
+fun makeInput (s : string): input =
   { text = s, pos = 0 }
 
-fun input_sub (start : int, len : int, s: input) : input =
+fun inputSub (start : int, len : int, s: input) : input =
   {
     text = String.substring (#text s, start, len),
     pos = (#pos s) + start
@@ -44,8 +44,8 @@ fun prefix (str : string) : string parser =
           let 
             val n = String.size str
             val m = String.size (#text input)
-            val pfix = input_sub (0, n, input)
-            val rest = input_sub (n, m - n, input)
+            val pfix = inputSub (0, n, input)
+            val rest = inputSub (n, m - n, input)
           in 
             if #text pfix = str then
               Ok (rest, str)
@@ -62,9 +62,9 @@ fun take (n : int) : string parser =
     run = fn input =>
           if n < (String.size (#text input)) then
             let 
-              val str = input_sub (0, n, input)
+              val str = inputSub (0, n, input)
               val m = String.size (#text input)
-              val rest = input_sub (n, m - n, input)
+              val rest = inputSub (n, m - n, input)
             in
               Ok (rest, (#text str))
             end
@@ -89,8 +89,8 @@ fun takeWhile (f : (char -> bool)) : string parser =
                   loop (idx + 1)
                 else
                   let 
-                    val str = input_sub (0, idx, input)
-                    val rest = input_sub (idx, m - idx, input) 
+                    val str = inputSub (0, idx, input)
+                    val rest = inputSub (idx, m - idx, input) 
                   in
                     (rest, (#text str))
                   end
@@ -112,7 +112,7 @@ infix <|>
 fun op*> (p1 : 'a parser, p2: 'b parser) : 'b parser =
   {
     run = fn input =>
-          case ((#run p1) input) of
+          case (#run p1) input of
             Ok (input', _) => ((#run p2) input')
           | Error e => Error e
   }
@@ -144,7 +144,7 @@ fun op<|> (p1 : 'a parser, p2 : 'a parser) : 'a parser =
 
 fun main () = 
   let 
-    val inp = make_input "world"
+    val inp = makeInput "world"
     val res = (#run (prefix "world" <|> prefix "hello")) inp
   in
     case res of 
