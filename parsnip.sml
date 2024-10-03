@@ -19,6 +19,9 @@ fun input_sub (start : int, len : int, s: input) : input =
 type error =
   { desc : string, pos: int }
 
+fun showError {desc, pos} =
+  desc ^ " at pos: " ^ (Int.toString pos)
+
 type 'a parser =
   { run: input -> (input * 'a, error) result }
 
@@ -40,13 +43,11 @@ fun bind (f : 'a -> 'b parser, p : 'a parser) : 'b parser =
 
 fun prefix (str : string) : string parser =
   {
-    run = fn input => 
-          let 
-            val n = String.size str
-            val m = String.size (#text input)
-            val pfix = input_sub (0, n, input)
-            val rest = input_sub (n, m - n, input)
-          in 
+    run = fn input => let 
+          val n = String.size str
+          val m = String.size (#text input)
+          val pfix = input_sub (0, n, input)
+          val rest = input_sub (n, m - n, input) in
             if #text pfix = str then
               Ok (rest, str)
             else
@@ -77,31 +78,26 @@ fun take (n : int) : string parser =
 
 fun takeWhile (f : (char -> bool)) : string parser =
   {
-    run = fn input =>
-          let 
-            fun loop (idx : int) : (input * string) =
-              let 
-                val m = String.size (#text input)
-                val substr = String.sub (#text input, idx)
-                val applied = f substr
-              in
-                if applied then
-                  loop (idx + 1)
-                else
-                  let 
-                    val str = input_sub (0, idx, input)
-                    val rest = input_sub (idx, m - idx, input) 
-                  in
-                    (rest, (#text str))
-                  end
+    run = fn input => let 
+            fun loop (idx : int) : (input * string) = let 
+              val m = String.size (#text input)
+              val substr = String.sub (#text input, idx)
+              val applied = f substr in
+              if applied then
+                loop (idx + 1)
+              else let 
+                val str = input_sub (0, idx, input)
+                val rest = input_sub (idx, m - idx, input) in
+                (rest, (#text str))
               end
-          in
-            Ok (loop 0) handle Subscript =>
-              Error {
-                pos = (#pos input),
-                desc = "Reached end of input at " ^ (Int.toString (#pos input))
-              }
-          end
+            end in
+              Ok (loop 0) 
+              handle Subscript =>
+                Error {
+                  pos = (#pos input),
+                  desc = "Reached end of input"
+                }
+            end
   }
 
 infix <*
@@ -149,8 +145,7 @@ fun main () =
   in
     case res of 
       Ok (_, x) => print x
-    | Error {desc, pos} => print ("Error: " ^ desc)
+    | Error x => print (showError x)
   end
 
 val () = main ()
-
