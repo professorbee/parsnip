@@ -19,6 +19,9 @@ fun inputSub (start : int, len : int, s: input) : input =
 type error =
   { desc : string, pos: int }
 
+fun showError {desc, pos} =
+  desc ^ " at pos: " ^ (Int.toString pos)
+
 type 'a parser =
   { run: input -> (input * 'a, error) result }
 
@@ -95,13 +98,14 @@ fun takeWhile (f : (char -> bool)) : string parser =
                     (rest, (#text str))
                   end
               end
-          in
-            Ok (loop 0) handle Subscript =>
-              Error {
-                pos = (#pos input),
-                desc = "Reached end of input at " ^ (Int.toString (#pos input))
-              }
-          end
+            end in
+              Ok (loop 0) 
+              handle Subscript =>
+                Error {
+                  pos = (#pos input),
+                  desc = "Reached end of input"
+                }
+            end
   }
 
 infix <*
@@ -149,8 +153,7 @@ fun main () =
   in
     case res of 
       Ok (_, x) => print x
-    | Error {desc, pos} => print ("Error: " ^ desc)
+    | Error x => print (showError x)
   end
 
 val () = main ()
-
